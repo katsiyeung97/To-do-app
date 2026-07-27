@@ -1843,7 +1843,7 @@ function App() {
                 background: `radial-gradient(ellipse at 30% 15%, rgba(255,255,255,0.08) 0%, transparent 55%), radial-gradient(ellipse at 80% 100%, rgba(0,0,0,0.14) 0%, transparent 60%)`,
             } }),
         React.createElement("div", { style: { width: "100%", maxWidth: 440, minHeight: "100vh", display: "flex", flexDirection: "column", position: "relative", zIndex: 1 } },
-            React.createElement("div", { style: { padding: "24px 20px 8px" } },
+            React.createElement("div", { style: { padding: "calc(env(safe-area-inset-top, 20px) + 18px) 20px 8px" } },
                 React.createElement("div", { style: { fontFamily: FONT_LOGO, fontSize: 24, fontWeight: 500, letterSpacing: 0.8, ...emboss } }, "to/do"),
                 React.createElement("div", { style: { fontSize: 12.5, color: COLORS.creamMuted, marginTop: 6 } }, dateStr)),
             React.createElement("div", { style: { flex: 1, padding: "16px 20px 110px", overflowY: "auto", position: "relative" } },
