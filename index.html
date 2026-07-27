@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>to/do</title>
+
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<link rel="icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="to/do" />
+<meta name="theme-color" content="#4F6E84" />
+
+<style>
+  html, body { margin: 0; padding: 0; background: #4F6E84; }
+  #root { min-height: 100vh; }
+  #boot-fallback {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #F6F3E9; font-family: serif; font-size: 15px; background: #4F6E84;
+  }
+</style>
+
+<!-- React (UMD builds — no bundler needed) -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- Icons (UMD build exposing window.LucideReact) -->
+<script crossorigin src="https://unpkg.com/lucide-react@0.383.0/dist/umd/lucide-react.js"></script>
+<!-- In-browser JSX transform -->
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script>
+  // ---- window.storage shim ----
+  // The real Claude-artifact window.storage API doesn't exist outside claude.ai.
+  // This replaces it with an equivalent backed by localStorage, using the
+  // exact same method signatures, so app.jsx needs zero changes.
+  (function () {
+    var PREFIX = "todo-app:";
+    window.storage = {
+      get: function (key) {
+        return new Promise(function (resolve, reject) {
+          try {
+            var raw = localStorage.getItem(PREFIX + key);
+            if (raw === null) { resolve(null); return; }
+            resolve({ key: key, value: raw, shared: false });
+          } catch (e) { reject(e); }
+        });
+      },
+      set: function (key, value) {
+        return new Promise(function (resolve, reject) {
+          try {
+            localStorage.setItem(PREFIX + key, value);
+            resolve({ key: key, value: value, shared: false });
+          } catch (e) { reject(e); }
+        });
+      },
+      delete: function (key) {
+        return new Promise(function (resolve, reject) {
+          try {
+            localStorage.removeItem(PREFIX + key);
+            resolve({ key: key, deleted: true, shared: false });
+          } catch (e) { reject(e); }
+        });
+      },
+      list: function (prefix) {
+        return new Promise(function (resolve, reject) {
+          try {
+            var full = PREFIX + (prefix || "");
+            var keys = Object.keys(localStorage)
+              .filter(function (k) { return k.indexOf(full) === 0; })
+              .map(function (k) { return k.slice(PREFIX.length); });
+            resolve({ keys: keys, prefix: prefix || null, shared: false });
+          } catch (e) { reject(e); }
+        });
+      }
+    };
+  })();
+
+  // Register the offline service worker
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("service-worker.js").catch(function (e) {
+        console.warn("Service worker registration failed:", e);
+      });
+    });
+  }
+</script>
+</head>
+<body>
+  <div id="root"><div id="boot-fallback">loading…</div></div>
+  <script type="text/babel" data-presets="react" src="app.jsx"></script>
+</body>
+</html>
