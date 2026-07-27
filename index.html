@@ -22,19 +22,11 @@
   }
 </style>
 
-<!-- React (UMD builds — no bundler needed) -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<!-- Icons (UMD build exposing window.LucideReact) -->
-<script crossorigin src="https://unpkg.com/lucide-react@0.383.0/dist/umd/lucide-react.js"></script>
-<!-- In-browser JSX transform -->
 <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script>
-  // ---- window.storage shim ----
-  // The real Claude-artifact window.storage API doesn't exist outside claude.ai.
-  // This replaces it with an equivalent backed by localStorage, using the
-  // exact same method signatures, so app.jsx needs zero changes.
   (function () {
     var PREFIX = "todo-app:";
     window.storage = {
@@ -77,7 +69,59 @@
     };
   })();
 
-  // Register the offline service worker
+  function showBootError(stage, err) {
+    var el = document.getElementById("boot-fallback");
+    if (!el) return;
+    el.style.textAlign = "left";
+    el.style.padding = "24px";
+    el.style.fontFamily = "monospace";
+    el.style.fontSize = "13px";
+    el.style.whiteSpace = "pre-wrap";
+    el.textContent = "Failed at: " + stage + "\n\n" + (err && err.message ? err.message : String(err));
+  }
+  window.addEventListener("error", function (e) {
+    showBootError("runtime", e.error || e.message);
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    showBootError("promise", e.reason);
+  });
+
+  (async function boot() {
+    var LucideReact;
+    try {
+      LucideReact = await import("https://esm.sh/lucide-react@0.383.0?deps=react@18,react-dom@18");
+      window.LucideReact = LucideReact;
+    } catch (e) {
+      showBootError("loading icon library", e);
+      return;
+    }
+
+    var code;
+    try {
+      var res = await fetch("app.jsx");
+      if (!res.ok) throw new Error("app.jsx responded with " + res.status);
+      code = await res.text();
+    } catch (e) {
+      showBootError("fetching app.jsx", e);
+      return;
+    }
+
+    var transformed;
+    try {
+      transformed = Babel.transform(code, { presets: ["react"] }).code;
+    } catch (e) {
+      showBootError("transforming app.jsx (Babel)", e);
+      return;
+    }
+
+    try {
+      (0, eval)(transformed);
+    } catch (e) {
+      showBootError("running app.jsx", e);
+      return;
+    }
+  })();
+
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("service-worker.js").catch(function (e) {
@@ -89,6 +133,5 @@
 </head>
 <body>
   <div id="root"><div id="boot-fallback">loading…</div></div>
-  <script type="text/babel" data-presets="react" src="app.jsx"></script>
 </body>
 </html>
