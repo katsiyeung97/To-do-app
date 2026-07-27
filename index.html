@@ -24,7 +24,6 @@
 
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script>
   (function () {
@@ -87,39 +86,18 @@
   });
 
   (async function boot() {
-    var LucideReact;
     try {
-      LucideReact = await import("https://esm.sh/lucide-react@0.383.0?deps=react@18,react-dom@18");
-      window.LucideReact = LucideReact;
+      window.LucideReact = await import("https://esm.sh/lucide-react@0.383.0?deps=react@18,react-dom@18");
     } catch (e) {
       showBootError("loading icon library", e);
       return;
     }
-
-    var code;
-    try {
-      var res = await fetch("app.jsx");
-      if (!res.ok) throw new Error("app.jsx responded with " + res.status);
-      code = await res.text();
-    } catch (e) {
-      showBootError("fetching app.jsx", e);
-      return;
-    }
-
-    var transformed;
-    try {
-      transformed = Babel.transform(code, { presets: ["react"] }).code;
-    } catch (e) {
-      showBootError("transforming app.jsx (Babel)", e);
-      return;
-    }
-
-    try {
-      (0, eval)(transformed);
-    } catch (e) {
-      showBootError("running app.jsx", e);
-      return;
-    }
+    var script = document.createElement("script");
+    script.src = "app.js";
+    script.onerror = function () {
+      showBootError("loading app.js", new Error("Could not load app.js — check it's sitting next to index.html in the repo"));
+    };
+    document.body.appendChild(script);
   })();
 
   if ("serviceWorker" in navigator) {
