@@ -3,7 +3,7 @@ const CACHE_NAME = "todo-app-v1";
 const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./app.jsx",
+  "./app.js",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",
