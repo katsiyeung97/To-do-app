@@ -1,6 +1,6 @@
 "use strict";
 const { useState, useEffect, useRef } = React;
-const { Plus, X, ChevronLeft, ChevronRight, Check, Cake, Droplet, Dumbbell, Pill, Trash2, Repeat, Flower2, Sun, CalendarDays, ListChecks, Sparkles, Moon, Leaf, Wallet, ShoppingCart, Receipt, Utensils, Car, ShoppingBag, Heart, Film, MoreHorizontal, TrendingUp, TrendingDown, Camera, Coffee, Wind, Feather, BookOpen, PiggyBank, Loader2, Landmark } = LucideReact;
+const { Plus, X, ChevronLeft, ChevronRight, Check, Cake, Droplet, Dumbbell, Pill, Trash2, Repeat, Flower2, Sun, CalendarDays, ListChecks, Sparkles, Moon, Leaf, Wallet, ShoppingCart, Receipt, Utensils, Car, ShoppingBag, Heart, Film, MoreHorizontal, TrendingUp, TrendingDown, Camera, Coffee, Wind, Feather, BookOpen, PiggyBank, Loader2, Landmark, Star, FileText, ArrowRight } = LucideReact;
 /* ---------------------------------- THEME ---------------------------------- */
 const COLORS = {
     bg: "#4F6E84",
@@ -27,13 +27,15 @@ const COLORS = {
     border: "rgba(43,58,66,0.14)",
     borderLight: "rgba(246,243,233,0.18)",
     danger: "#A5654A",
+    priority: "#8FB4D6",
+    priorityLight: "#DCE9F2",
 };
 const GLASS_BLUR = "blur(18px)";
 const FONT_DISPLAY = "'Cormorant Garamond', serif";
 const FONT_BODY = "'Jost', sans-serif";
 const FONT_LOGO = "'Fraunces', serif";
 const GLOBAL_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&display=swap');
 
 * { box-sizing: border-box; }
 .planner-root { font-family: ${FONT_BODY}; -webkit-tap-highlight-color: transparent; }
@@ -73,8 +75,8 @@ const GLOBAL_CSS = `
   0% { opacity: 0; transform: scale(0.6); }
   100% { opacity: 0.35; transform: scale(1); }
 }
-.intro-to { display: inline-block; animation: slideInLeft 1.1s cubic-bezier(0.16,1,0.3,1) both; }
-.intro-do { display: inline-block; animation: slideInRight 1.1s cubic-bezier(0.16,1,0.3,1) both; }
+.intro-to { display: inline-block; animation: slideInLeft 1.6s cubic-bezier(0.16,1,0.3,1) both; }
+.intro-do { display: inline-block; animation: slideInRight 1.6s cubic-bezier(0.16,1,0.3,1) both; }
 .intro-slash { display: inline-block; opacity: 1; }
 .tab-panel { animation: tabFade 0.32s cubic-bezier(0.16,1,0.3,1) both; }
 
@@ -178,7 +180,11 @@ function getOccurrences(task, rangeStartKey, rangeEndKey) {
     const anchor = fromKey(task.date);
     const repeat = task.repeat || "none";
     if (repeat === "none") {
-        return anchor >= rangeStart && anchor <= rangeEnd ? [task.date] : [];
+        const allDates = [task.date, ...(task.extraDates || [])];
+        return allDates.filter((k) => {
+            const d = fromKey(k);
+            return d >= rangeStart && d <= rangeEnd;
+        }).sort();
     }
     const step = (d) => {
         if (repeat === "daily")
@@ -203,6 +209,9 @@ function getOccurrences(task, rangeStartKey, rangeEndKey) {
         guard++;
     }
     return result;
+}
+function hasMultipleOccurrences(task) {
+    return !!((task.repeat && task.repeat !== "none") || (task.extraDates && task.extraDates.length > 0));
 }
 /* -------------------------------- SEED DATA -------------------------------- */
 const todayKeySeed = toKey(new Date());
@@ -281,10 +290,9 @@ const seedExpenses = [
 ];
 const seedBudgets = { Groceries: 400, Fitness: 60, Bills: 250, Dining: 150, Transport: 100, Shopping: 150, Health: 80, Entertainment: 60, Other: 100 };
 /* -------- Savings -------- */
-const SAVINGS_ACCOUNTS = ["RRSP", "TFSA", "FHSA", "Savings", "Other"];
+const SAVINGS_ACCOUNTS = ["Savings"];
 const seedSavings = [
-    { id: "sav-1", account: "TFSA", amount: 50, date: toKey(startOfWeek(new Date())), repeat: "weekly" },
-    { id: "sav-2", account: "RRSP", amount: 150, date: toKey(startOfMonth(new Date())), repeat: "monthly" },
+    { id: "sav-1", account: "Savings", amount: 50, date: toKey(startOfWeek(new Date())), repeat: "weekly" },
 ];
 function savingsOccurrenceTotal(entry, startKey, endKey) {
     return getOccurrences(entry, startKey, endKey).length * entry.amount;
@@ -529,7 +537,7 @@ function dailyMoodTiles() {
 }
 /* ------------------------------ SMALL UI PIECES ------------------------------ */
 function Bloom({ checked, onClick, size = 22 }) {
-    return (React.createElement("button", { onClick: onClick, "aria-label": checked ? "Mark as not done" : "Mark as done", style: {
+    return (React.createElement("button", { onClick: onClick, onPointerDown: (e) => e.stopPropagation(), "aria-label": checked ? "Mark as not done" : "Mark as done", style: {
             width: size, height: size, borderRadius: "50%", flexShrink: 0,
             border: `1.6px solid ${checked ? COLORS.sage : COLORS.creamMuted}`,
             background: checked ? `linear-gradient(135deg, ${COLORS.sage}, ${COLORS.teal})` : "transparent",
@@ -562,7 +570,7 @@ function EmptyState({ text }) {
         } }, text));
 }
 /* -------------------------------- DRAG-TO-REORDER LIST -------------------------------- */
-function DragList({ items, getKey, onCommit, renderItem }) {
+function DragList({ items, getKey, onCommit, renderItem, onTapHandle }) {
     const [order, setOrder] = useState(() => items.map(getKey));
     const [dragId, setDragId] = useState(null);
     const drag = useRef({ active: false });
@@ -587,12 +595,23 @@ function DragList({ items, getKey, onCommit, renderItem }) {
             el.setPointerCapture(e.pointerId);
         }
         catch (err) { /* ignore */ }
-        drag.current.active = true;
-        setDragId(id);
+        drag.current = { active: false, moved: false, startX: e.clientX, startY: e.clientY, id, el };
     };
     const moveDrag = (e, id) => {
-        if (!drag.current.active || dragId !== id)
+        if (drag.current.id !== id)
             return;
+        const dx = e.clientX - drag.current.startX;
+        const dy = e.clientY - drag.current.startY;
+        if (!drag.current.active) {
+            if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+                drag.current.active = true;
+                drag.current.moved = true;
+                setDragId(id);
+            }
+            else {
+                return;
+            }
+        }
         e.preventDefault();
         const el = document.elementFromPoint(e.clientX, e.clientY);
         const row = el && el.closest("[data-drag-id]");
@@ -612,10 +631,16 @@ function DragList({ items, getKey, onCommit, renderItem }) {
             return next;
         });
     };
-    const endDrag = (id) => {
-        if (drag.current.active)
+    const endDrag = (id, onTapHandle) => {
+        if (drag.current.id !== id)
+            return;
+        if (drag.current.active) {
             onCommit(order, id);
-        drag.current.active = false;
+        }
+        else if (!drag.current.moved && onTapHandle) {
+            onTapHandle(id);
+        }
+        drag.current = { active: false };
         setDragId(null);
     };
     return (React.createElement("div", null, visual.map((item) => {
@@ -624,8 +649,8 @@ function DragList({ items, getKey, onCommit, renderItem }) {
         const handleProps = {
             onPointerDown: (e) => startDrag(e, id),
             onPointerMove: (e) => moveDrag(e, id),
-            onPointerUp: () => endDrag(id),
-            onPointerCancel: () => endDrag(id),
+            onPointerUp: () => endDrag(id, onTapHandle),
+            onPointerCancel: () => endDrag(id, onTapHandle),
             style: { touchAction: "none", cursor: "grab" },
         };
         return (React.createElement("div", { key: id, "data-drag-id": id, style: {
@@ -636,10 +661,14 @@ function DragList({ items, getKey, onCommit, renderItem }) {
             } }, renderItem(item, handleProps)));
     })));
 }
-function DragHandleIcon() {
-    return (React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 3, padding: "10px 8px", flexShrink: 0 } },
+function DragHandleIcon({ hasSubtasks }) {
+    return (React.createElement("div", { style: { position: "relative", display: "flex", flexDirection: "column", gap: 3, padding: "10px 8px", flexShrink: 0 } },
         React.createElement("div", { style: { width: 16, height: 2, borderRadius: 1, background: COLORS.creamFaint } }),
-        React.createElement("div", { style: { width: 16, height: 2, borderRadius: 1, background: COLORS.creamFaint } })));
+        React.createElement("div", { style: { width: 16, height: 2, borderRadius: 1, background: COLORS.creamFaint } }),
+        hasSubtasks && (React.createElement("div", { style: {
+                position: "absolute", top: 4, right: 3, width: 6, height: 6, borderRadius: "50%",
+                background: "#fff", boxShadow: "0 0 3px rgba(255,255,255,0.6)",
+            } }))));
 }
 /* -------------------------------- SWIPE TO DELETE -------------------------------- */
 function ConfirmDeleteModal({ onCancel, onConfirm }) {
@@ -663,21 +692,24 @@ function ConfirmDeleteModal({ onCancel, onConfirm }) {
                         background: COLORS.danger, color: "#fff", fontSize: 13.5, fontWeight: 700,
                     } }, "Delete")))));
 }
-function SwipeRow({ onDelete, children }) {
+function SwipeRow({ onDelete, onTogglePriority, onTap, children }) {
     const REVEAL = 84;
     const [dx, setDx] = useState(0);
     const [revealed, setRevealed] = useState(false);
     const [confirming, setConfirming] = useState(false);
-    const drag = useRef({ startX: 0, startY: 0, active: false, decided: false });
+    const drag = useRef({ startX: 0, startY: 0, active: false, decided: false, moved: false });
     const onPointerDown = (e) => {
         drag.current.startX = e.clientX;
         drag.current.startY = e.clientY;
         drag.current.active = false;
         drag.current.decided = false;
+        drag.current.moved = false;
     };
     const onPointerMove = (e) => {
         const dxRaw = e.clientX - drag.current.startX;
         const dyRaw = e.clientY - drag.current.startY;
+        if (Math.abs(dxRaw) > 4 || Math.abs(dyRaw) > 4)
+            drag.current.moved = true;
         if (!drag.current.decided) {
             if (Math.abs(dxRaw) > 10 && Math.abs(dxRaw) > Math.abs(dyRaw) * 1.3) {
                 drag.current.decided = true;
@@ -698,8 +730,9 @@ function SwipeRow({ onDelete, children }) {
         if (!drag.current.active)
             return;
         e.preventDefault();
-        let next = (revealed ? -REVEAL : 0) + dxRaw;
-        next = Math.min(0, Math.max(-REVEAL - 16, next));
+        const base = revealed ? -REVEAL : 0;
+        let next = base + dxRaw;
+        next = Math.min(REVEAL + 16, Math.max(-REVEAL - 16, next));
         setDx(next);
     };
     const onPointerUp = () => {
@@ -708,10 +741,18 @@ function SwipeRow({ onDelete, children }) {
                 setDx(-REVEAL);
                 setRevealed(true);
             }
+            else if (dx > REVEAL / 2) {
+                setDx(0);
+                setRevealed(false);
+                onTogglePriority && onTogglePriority();
+            }
             else {
                 setDx(0);
                 setRevealed(false);
             }
+        }
+        else if (!drag.current.moved) {
+            onTap && onTap();
         }
         drag.current.active = false;
     };
@@ -719,9 +760,15 @@ function SwipeRow({ onDelete, children }) {
         React.createElement("div", { style: {
                 position: "absolute", top: 0, right: 0, bottom: 0, width: REVEAL,
                 display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.danger,
-                opacity: Math.min(1, -dx / REVEAL),
+                opacity: Math.min(1, Math.max(0, -dx) / REVEAL),
             } },
             React.createElement("button", { onClick: () => setConfirming(true), style: { border: "none", background: "none", color: "#fff", fontSize: 12.5, fontWeight: 700, width: "100%", height: "100%" } }, "Delete")),
+        React.createElement("div", { style: {
+                position: "absolute", top: 0, left: 0, bottom: 0, width: REVEAL,
+                display: "flex", alignItems: "center", justifyContent: "center", background: COLORS.priority,
+                opacity: Math.min(1, Math.max(0, dx) / REVEAL), pointerEvents: "none",
+            } },
+            React.createElement(Star, { size: 20, color: "#fff", fill: "#fff" })),
         React.createElement("div", { onPointerDown: onPointerDown, onPointerMove: onPointerMove, onPointerUp: onPointerUp, onPointerCancel: onPointerUp, style: {
                 transform: `translateX(${dx}px)`,
                 transition: drag.current.active ? "none" : "transform 0.2s ease",
@@ -730,13 +777,16 @@ function SwipeRow({ onDelete, children }) {
         confirming && (React.createElement(ConfirmDeleteModal, { onCancel: () => { setConfirming(false); setDx(0); setRevealed(false); }, onConfirm: () => { setConfirming(false); setDx(0); setRevealed(false); onDelete(); } }))));
 }
 /* -------------------------------- TASK ROW -------------------------------- */
-function TaskRow({ task, dateKey, onToggle, onDelete, showDate, dragHandleProps }) {
+function TaskRow({ task, dateKey, onToggle, onDelete, showDate, dragHandleProps, onTogglePriority, onEdit, onOpenSubtasks }) {
     const isRepeating = task.repeat && task.repeat !== "none";
-    const done = isRepeating ? (task.completions || []).includes(dateKey) : !!task.completed;
+    const isMultiDay = task.extraDates && task.extraDates.length > 0;
+    const isMulti = isRepeating || isMultiDay;
+    const done = isMulti ? (task.completions || []).includes(dateKey) : !!task.completed;
     const time = formatTime(task.time);
+    const hasSubtasks = task.subtasks && task.subtasks.length > 0;
     return (React.createElement("div", { className: "fade-up", style: { display: "flex", alignItems: "stretch" } },
         React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-            React.createElement(SwipeRow, { onDelete: () => onDelete(task.id) },
+            React.createElement(SwipeRow, { onDelete: () => onDelete(task.id), onTogglePriority: () => onTogglePriority && onTogglePriority(task.id), onTap: () => onEdit && onEdit(task) },
                 React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 4px" } },
                     task.type === "birthday" ? (React.createElement("div", { style: {
                             width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
@@ -744,20 +794,23 @@ function TaskRow({ task, dateKey, onToggle, onDelete, showDate, dragHandleProps 
                         } },
                         React.createElement(Cake, { size: 13, color: COLORS.taupe }))) : (React.createElement(Bloom, { checked: done, onClick: () => onToggle(task.id, dateKey) })),
                     React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-                        React.createElement("div", { style: {
-                                fontSize: 14.5, color: done ? COLORS.creamFaint : COLORS.cream,
-                                textDecoration: done ? "line-through" : "none",
-                                fontWeight: 500, lineHeight: 1.35, wordBreak: "break-word",
-                            } }, task.title),
-                        (time || (showDate && task.date) || isRepeating) && (React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 2, alignItems: "center" } },
+                        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 5 } },
+                            task.priority && React.createElement(Star, { size: 12, color: COLORS.priority, fill: COLORS.priority, style: { flexShrink: 0 } }),
+                            React.createElement("div", { style: {
+                                    fontSize: 14.5, color: done ? COLORS.creamFaint : COLORS.cream,
+                                    textDecoration: done ? "line-through" : "none",
+                                    fontWeight: 500, lineHeight: 1.35, wordBreak: "break-word",
+                                } }, task.title)),
+                        (time || (showDate && task.date) || isRepeating || isMultiDay) && (React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 2, alignItems: "center" } },
                             time && (React.createElement("span", { style: { fontSize: 11.5, color: COLORS.cream, fontWeight: 700, textDecoration: "underline" } }, time)),
                             showDate && task.date && (React.createElement("span", { style: { fontSize: 11.5, color: COLORS.creamFaint } },
                                 MONTHS[fromKey(dateKey).getMonth()],
                                 " ",
                                 fromKey(dateKey).getDate())),
-                            isRepeating && React.createElement(Repeat, { size: 11, color: COLORS.creamFaint }))))))),
+                            isRepeating && React.createElement(Repeat, { size: 11, color: COLORS.creamFaint }),
+                            isMultiDay && React.createElement("span", { style: { fontSize: 10.5, color: COLORS.creamFaint } }, "multi-day"))))))),
         React.createElement("div", { ...dragHandleProps },
-            React.createElement(DragHandleIcon, null))));
+            React.createElement(DragHandleIcon, { hasSubtasks: hasSubtasks }))));
 }
 /* -------------------------------- QUOTE CARD -------------------------------- */
 function MoodTile({ tile }) {
@@ -809,8 +862,7 @@ function sortTasks(list) {
         return a.time.localeCompare(b.time);
     });
 }
-function TodayView({ tasks, onToggle, onDelete, onReorder }) {
-    const [which, setWhich] = useState("today");
+function TodayView({ tasks, onToggle, onDelete, onReorder, onTogglePriority, onEdit, onOpenSubtasks, which, setWhich }) {
     const todayKey = toKey(new Date());
     const tomorrowKey = toKey(addDays(new Date(), 1));
     const activeKey = which === "today" ? todayKey : tomorrowKey;
@@ -825,17 +877,18 @@ function TodayView({ tasks, onToggle, onDelete, onReorder }) {
         React.createElement(Segmented, { value: which, onChange: setWhich, options: [{ label: "Today", value: "today" }, { label: "Tomorrow", value: "tomorrow" }] }),
         React.createElement("div", { style: { marginTop: 18 } },
             React.createElement(SectionLabel, null, which === "today" ? "Today's schedule" : "Tomorrow's schedule"),
-            sorted.length === 0 ? (React.createElement(EmptyState, { text: "Nothing scheduled \u2014 enjoy the open space." })) : (React.createElement(DragList, { items: sorted, getKey: (t) => t.id, onCommit: onReorder, renderItem: (t, h) => React.createElement(TaskRow, { task: t, dateKey: activeKey, onToggle: onToggle, onDelete: onDelete, dragHandleProps: h }) })))));
+            sorted.length === 0 ? (React.createElement(EmptyState, { text: "Nothing scheduled \u2014 enjoy the open space." })) : (React.createElement(DragList, { items: sorted, getKey: (t) => t.id, onCommit: onReorder, onTapHandle: (id) => { const t = sorted.find((x) => x.id === id); if (t)
+                    onOpenSubtasks(t); }, renderItem: (t, h) => (React.createElement(TaskRow, { task: t, dateKey: activeKey, onToggle: onToggle, onDelete: onDelete, dragHandleProps: h, onTogglePriority: onTogglePriority, onEdit: onEdit, onOpenSubtasks: onOpenSubtasks })) })))));
 }
 /* -------------------------------- TASKS VIEW -------------------------------- */
-function TasksView({ tasks, onToggle, onDelete, onReorder }) {
+function TasksView({ tasks, onToggle, onDelete, onReorder, onTogglePriority, onEdit, onOpenSubtasks }) {
     const [historyOpen, setHistoryOpen] = useState(false);
     const general = tasks.filter((t) => t.type === "task" && !t.date);
     const activeGeneral = sortTasks(general.filter((t) => !t.completed));
     const history = [];
     tasks.forEach((t) => {
-        const isRepeating = t.repeat && t.repeat !== "none";
-        if (isRepeating) {
+        const isMulti = hasMultipleOccurrences(t);
+        if (isMulti) {
             (t.completions || []).forEach((d) => history.push({ id: t.id + "-" + d, title: t.title, date: d, type: t.type }));
         }
         else if (t.completed) {
@@ -845,7 +898,8 @@ function TasksView({ tasks, onToggle, onDelete, onReorder }) {
     history.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
     return (React.createElement("div", { className: "fade-up" },
         React.createElement(SectionLabel, null, "General tasks"),
-        activeGeneral.length === 0 ? (React.createElement(EmptyState, { text: "No general tasks \u2014 add something to remember." })) : (React.createElement(DragList, { items: activeGeneral, getKey: (t) => t.id, onCommit: onReorder, renderItem: (t, h) => React.createElement(TaskRow, { task: t, dateKey: t.date, onToggle: onToggle, onDelete: onDelete, dragHandleProps: h }) })),
+        activeGeneral.length === 0 ? (React.createElement(EmptyState, { text: "No general tasks \u2014 add something to remember." })) : (React.createElement(DragList, { items: activeGeneral, getKey: (t) => t.id, onCommit: onReorder, onTapHandle: (id) => { const t = activeGeneral.find((x) => x.id === id); if (t)
+                onOpenSubtasks(t); }, renderItem: (t, h) => (React.createElement(TaskRow, { task: t, dateKey: t.date, onToggle: onToggle, onDelete: onDelete, dragHandleProps: h, onTogglePriority: onTogglePriority, onEdit: onEdit, onOpenSubtasks: onOpenSubtasks })) })),
         React.createElement("div", { style: { marginTop: 26 } },
             React.createElement("button", { onClick: () => setHistoryOpen((v) => !v), style: {
                     width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -895,33 +949,40 @@ function MonthStructureModal({ initialDate, onClose }) {
         if (el)
             el.scrollIntoView({ block: "start" });
     }, []);
+    useEffect(() => {
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => {
+            document.body.style.overflow = prevOverflow;
+        };
+    }, []);
     return (React.createElement("div", { onClick: onClose, style: {
-            position: "fixed", inset: 0, zIndex: 60, background: "rgba(20,28,32,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+            position: "fixed", inset: 0, zIndex: 60, background: "rgba(20,28,32,0.45)",
+            display: "flex", alignItems: "flex-end", justifyContent: "center",
         } },
-        React.createElement("div", { onClick: (e) => e.stopPropagation(), style: {
-                width: "100%", maxWidth: 360, height: "62vh", maxHeight: 460,
-                background: COLORS.surfaceSolid, borderRadius: 24, overflow: "hidden",
-                display: "flex", flexDirection: "column", boxShadow: "0 20px 50px rgba(20,28,32,0.35)",
+        React.createElement("div", { className: "modal-in", onClick: (e) => e.stopPropagation(), style: {
+                width: "100%", maxWidth: 420, height: "70vh", maxHeight: 560,
+                background: COLORS.surfaceSolid, borderRadius: "24px 24px 0 0", overflow: "hidden",
+                display: "flex", flexDirection: "column",
             } },
-            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 16px 8px" } },
-                React.createElement("div", { style: { fontFamily: FONT_DISPLAY, fontSize: 15, fontWeight: 600, color: COLORS.bgDeep } }, "Calendar"),
-                React.createElement("button", { className: "clean-btn", onClick: onClose, style: { border: "none", background: COLORS.sageLight, borderRadius: "50%", padding: 6 } },
-                    React.createElement(X, { size: 14, color: COLORS.bgDeep }))),
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 18px 8px" } },
+                React.createElement("div", { style: { fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 600, color: COLORS.bgDeep } }, "Calendar"),
+                React.createElement("button", { className: "clean-btn", onClick: onClose, style: { border: "none", background: COLORS.sageLight, borderRadius: "50%", padding: 7 } },
+                    React.createElement(X, { size: 15, color: COLORS.bgDeep }))),
             React.createElement("div", { style: { flex: 1, overflowY: "auto", scrollSnapType: "y mandatory" } }, months.map((m, i) => (React.createElement("div", { key: i, id: i === 12 ? "month-struct-current" : undefined, style: {
-                    scrollSnapAlign: "start", minHeight: "100%", padding: "8px 18px",
+                    scrollSnapAlign: "start", minHeight: "100%", padding: "8px 20px",
                     display: "flex", flexDirection: "column", justifyContent: "center",
                 } },
-                React.createElement("div", { style: { textAlign: "center", fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 600, color: COLORS.bgDeep, marginBottom: 14 } }, monthLabel(m)),
-                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 5, marginBottom: 6 } }, WEEKDAYS.map((w) => (React.createElement("div", { key: w, style: { textAlign: "center", fontSize: 9.5, fontWeight: 700, color: COLORS.bgSoft } }, w[0])))),
-                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 5 } }, monthDayCells(m).map((c, idx) => (React.createElement("div", { key: idx, style: { aspectRatio: "1 / 1", display: "flex", alignItems: "center", justifyContent: "center" } }, c && (React.createElement("div", { style: {
+                React.createElement("div", { style: { textAlign: "center", fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: COLORS.bgDeep, marginBottom: 16 } }, monthLabel(m)),
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 8 } }, WEEKDAYS.map((w) => (React.createElement("div", { key: w, style: { textAlign: "center", fontSize: 10, fontWeight: 700, color: COLORS.bgSoft } }, w[0])))),
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 } }, monthDayCells(m).map((c, idx) => (React.createElement("div", { key: idx, style: { aspectRatio: "1 / 1", display: "flex", alignItems: "center", justifyContent: "center" } }, c && (React.createElement("div", { style: {
                         width: "78%", height: "78%", borderRadius: "50%",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         border: c.key === todayKey ? `1.5px solid ${COLORS.bgDeep}` : "none",
                     } },
-                    React.createElement("span", { style: { fontSize: 11, color: COLORS.bgDeep, fontWeight: c.key === todayKey ? 700 : 400 } }, c.day))))))))))))));
+                    React.createElement("span", { style: { fontSize: 12, color: COLORS.bgDeep, fontWeight: c.key === todayKey ? 700 : 400 } }, c.day))))))))))))));
 }
-function CalendarView({ tasks, onToggle, onDelete, onReorder, refDate, setRefDate, zoom, setZoom }) {
+function CalendarView({ tasks, onToggle, onDelete, onReorder, onTogglePriority, onEdit, onOpenSubtasks, refDate, setRefDate, zoom, setZoom }) {
     const todayKey = toKey(new Date());
     const tomorrowKey = toKey(addDays(new Date(), 1));
     let rangeStart, rangeEnd;
@@ -1004,7 +1065,8 @@ function CalendarView({ tasks, onToggle, onDelete, onReorder, refDate, setRefDat
                     " ",
                     d.getFullYear())),
                 React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: COLORS.creamMuted, marginTop: 14, marginBottom: 2 } }, formatDateHeader(k, todayKey, tomorrowKey)),
-                React.createElement(DragList, { items: byDate[k], getKey: (t) => t.id, onCommit: onReorder, renderItem: (t, h) => React.createElement(TaskRow, { task: t, dateKey: k, onToggle: onToggle, onDelete: onDelete, dragHandleProps: h }) })));
+                React.createElement(DragList, { items: byDate[k], getKey: (t) => t.id, onCommit: onReorder, onTapHandle: (id) => { const t = byDate[k].find((x) => x.id === id); if (t)
+                        onOpenSubtasks(t); }, renderItem: (t, h) => (React.createElement(TaskRow, { task: t, dateKey: k, onToggle: onToggle, onDelete: onDelete, dragHandleProps: h, onTogglePriority: onTogglePriority, onEdit: onEdit, onOpenSubtasks: onOpenSubtasks })) })));
         })),
         structureOpen && (React.createElement(MonthStructureModal, { initialDate: refDate, onClose: () => setStructureOpen(false) }))));
 }
@@ -1106,6 +1168,8 @@ const formatMoney = (n) => `$${Math.abs(n).toFixed(2)}`;
 const monthLabel = (d) => `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 function weeklyBuckets(expenses, monthDate) {
     const totalDays = endOfMonth(monthDate).getDate();
+    const monthStartKey = toKey(startOfMonth(monthDate));
+    const monthEndKey = toKey(endOfMonth(monthDate));
     const buckets = [];
     for (let d = 1; d <= totalDays; d += 7) {
         buckets.push({ label: `${d}–${Math.min(d + 6, totalDays)}`, start: d, end: Math.min(d + 6, totalDays), total: 0 });
@@ -1113,13 +1177,12 @@ function weeklyBuckets(expenses, monthDate) {
     expenses.forEach((e) => {
         if (e.type !== "expense")
             return;
-        const ed = fromKey(e.date);
-        if (ed.getFullYear() !== monthDate.getFullYear() || ed.getMonth() !== monthDate.getMonth())
-            return;
-        const day = ed.getDate();
-        const bucket = buckets.find((b) => day >= b.start && day <= b.end);
-        if (bucket)
-            bucket.total += e.amount;
+        getOccurrences(e, monthStartKey, monthEndKey).forEach((occKey) => {
+            const day = fromKey(occKey).getDate();
+            const bucket = buckets.find((b) => day >= b.start && day <= b.end);
+            if (bucket)
+                bucket.total += e.amount;
+        });
     });
     return buckets;
 }
@@ -1137,12 +1200,14 @@ function ExpenseRow({ item, onDelete }) {
             React.createElement(Icon, { size: 15, color: item.type === "income" ? COLORS.sageDeep : COLORS.textMuted })),
         React.createElement("div", { style: { flex: 1, minWidth: 0 } },
             React.createElement("div", { style: { fontSize: 14, fontWeight: 500, color: COLORS.text } }, item.title),
-            React.createElement("div", { style: { fontSize: 11, color: COLORS.textFaint, marginTop: 1 } },
-                item.type === "income" ? "Income" : item.category,
-                " \u00B7 ",
-                MONTHS[fromKey(item.date).getMonth()],
-                " ",
-                fromKey(item.date).getDate())),
+            React.createElement("div", { style: { fontSize: 11, color: COLORS.textFaint, marginTop: 1, display: "flex", alignItems: "center", gap: 5 } },
+                React.createElement("span", null,
+                    item.type === "income" ? "Income" : item.category,
+                    " \u00B7 ",
+                    MONTHS[fromKey(item.date).getMonth()],
+                    " ",
+                    fromKey(item.date).getDate()),
+                item.repeat && item.repeat !== "none" && React.createElement(Repeat, { size: 10, color: COLORS.textFaint }))),
         React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: item.type === "income" ? COLORS.sageDeep : COLORS.text, flexShrink: 0 } },
             item.type === "income" ? "+" : "−",
             formatMoney(item.amount)),
@@ -1174,13 +1239,18 @@ function SpendingPulse({ pulse }) {
             " last month.")));
 }
 function ExpensesView({ expenses, budgets, savings, monthRef, setMonthRef, onDeleteExpense, onOpenBudgets }) {
-    const inMonth = expenses.filter((e) => {
-        const d = fromKey(e.date);
-        return d.getFullYear() === monthRef.getFullYear() && d.getMonth() === monthRef.getMonth();
+    const monthStartKey = toKey(startOfMonth(monthRef));
+    const monthEndKey = toKey(endOfMonth(monthRef));
+    // Expand each expense/income entry into one row per occurrence within this month
+    // (recurring entries repeat via the same getOccurrences logic tasks use).
+    const inMonth = [];
+    expenses.forEach((e) => {
+        getOccurrences(e, monthStartKey, monthEndKey).forEach((occKey) => {
+            inMonth.push({ ...e, date: occKey, occurrenceId: e.id + "@" + occKey, sourceId: e.id });
+        });
     });
     const income = inMonth.filter((e) => e.type === "income").reduce((s, e) => s + e.amount, 0);
     const spent = inMonth.filter((e) => e.type === "expense").reduce((s, e) => s + e.amount, 0);
-    const net = income - spent;
     const byCategory = {};
     inMonth.forEach((e) => {
         if (e.type !== "expense")
@@ -1192,8 +1262,6 @@ function ExpensesView({ expenses, budgets, savings, monthRef, setMonthRef, onDel
     const maxBucket = Math.max(1, ...buckets.map((b) => b.total));
     const sorted = [...inMonth].sort((a, b) => b.date.localeCompare(a.date));
     const todayKeyNow = toKey(new Date());
-    const monthStartKey = toKey(startOfMonth(monthRef));
-    const monthEndKey = toKey(endOfMonth(monthRef));
     const savingsByAccount = SAVINGS_ACCOUNTS
         .map((account) => {
         const entries = savings.filter((s) => s.account === account);
@@ -1204,6 +1272,8 @@ function ExpensesView({ expenses, budgets, savings, monthRef, setMonthRef, onDel
         return { account, month, allTime };
     })
         .filter(Boolean);
+    const savedThisMonth = savingsByAccount.reduce((sum, s) => sum + s.month, 0);
+    const net = income - spent - savedThisMonth;
     const pulse = computeSpendingPulse(expenses);
     return (React.createElement("div", { className: "fade-up" },
         React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } },
@@ -1270,7 +1340,7 @@ function ExpensesView({ expenses, budgets, savings, monthRef, setMonthRef, onDel
             sorted.length === 0 ? (React.createElement("div", { style: { fontSize: 12.5, color: COLORS.textFaint, fontStyle: "italic", fontFamily: FONT_DISPLAY, padding: "10px 0" } },
                 "Nothing logged for ",
                 monthLabel(monthRef),
-                " yet.")) : (sorted.map((e) => React.createElement(ExpenseRow, { key: e.id, item: e, onDelete: onDeleteExpense })))),
+                " yet.")) : (sorted.map((e) => React.createElement(ExpenseRow, { key: e.occurrenceId || e.id, item: e, onDelete: onDeleteExpense })))),
         React.createElement("div", { style: { background: COLORS.bgDeep, borderRadius: 20, padding: "18px 16px 14px" } },
             React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: COLORS.creamMuted, marginBottom: 14 } }, "Weekly spending"),
             React.createElement("div", { style: { display: "flex", alignItems: "flex-end", gap: 10, height: 110 } }, buckets.map((b) => (React.createElement("div", { key: b.label, style: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" } },
@@ -1336,7 +1406,8 @@ function GroceryView({ meals, setMeals, ingredients, pantry, onAddIngredient, on
                 ")"),
             toBuy.length === 0 ? (React.createElement("div", { style: { fontSize: 12.5, color: COLORS.textFaint, fontStyle: "italic", fontFamily: FONT_DISPLAY, padding: "8px 0" } }, "You have everything you need. Nothing to buy.")) : (toBuy.map((i) => (React.createElement("div", { key: i.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0" } },
                 React.createElement(Bloom, { checked: false, onClick: () => onBuyItem(i) }),
-                React.createElement("span", { style: { fontSize: 14, color: COLORS.text, fontWeight: 500 } }, i.name)))))),
+                React.createElement("span", { style: { fontSize: 14, color: COLORS.text, fontWeight: 500 } }, i.name))))),
+            React.createElement(QuickAddRow, { placeholder: "Add something to buy\u2026", onAdd: onAddIngredient })),
         React.createElement("div", { style: { background: COLORS.surface, borderRadius: 20, padding: "18px 16px" } },
             React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: COLORS.textMuted, marginBottom: 4 } }, "In stock"),
             pantry.length === 0 ? (React.createElement("div", { style: { fontSize: 12.5, color: COLORS.textFaint, fontStyle: "italic", fontFamily: FONT_DISPLAY, padding: "8px 0" } }, "Nothing marked as in stock yet.")) : (pantry.map((p) => (React.createElement("div", { key: p.id, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 0" } },
@@ -1463,40 +1534,88 @@ const inputStyle = {
     width: "100%", padding: "11px 13px", borderRadius: 12, border: `1px solid ${COLORS.border}`,
     background: COLORS.surface, fontSize: 14.5, color: COLORS.text, outline: "none",
 };
-function AddTaskModal({ onClose, onSave, defaultDate }) {
-    const [type, setType] = useState("task");
-    const [title, setTitle] = useState("");
-    const [hasDate, setHasDate] = useState(!!defaultDate);
-    const [date, setDate] = useState(defaultDate || toKey(new Date()));
-    const [hasTime, setHasTime] = useState(false);
-    const [time, setTime] = useState("09:00");
-    const [repeat, setRepeat] = useState("none");
+function AddTaskModal({ onClose, onSave, defaultDate, editingTask }) {
+    const [type, setType] = useState(editingTask ? editingTask.type : "task");
+    const [title, setTitle] = useState(editingTask ? editingTask.title : "");
+    const [hasDate, setHasDate] = useState(editingTask ? !!editingTask.date : !!defaultDate);
+    const [date, setDate] = useState(editingTask && editingTask.date ? editingTask.date : (defaultDate || toKey(new Date())));
+    const [hasTime, setHasTime] = useState(editingTask ? !!editingTask.time : false);
+    const [time, setTime] = useState((editingTask && editingTask.time) || "09:00");
+    const [repeat, setRepeat] = useState((editingTask && editingTask.repeat) || "none");
+    const [priority, setPriority] = useState(editingTask ? !!editingTask.priority : false);
+    const [multiDay, setMultiDay] = useState(!!(editingTask && editingTask.extraDates && editingTask.extraDates.length > 0));
+    const [selectedDates, setSelectedDates] = useState(new Set(editingTask && editingTask.date ? [editingTask.date, ...(editingTask.extraDates || [])] : []));
+    const [gridMonth, setGridMonth] = useState(() => fromKey(date));
     const isBirthday = type === "birthday";
     const effectiveHasDate = isBirthday ? true : hasDate;
     const effectiveRepeat = isBirthday ? "yearly" : repeat;
-    const canSave = title.trim().length > 0;
+    const canSave = title.trim().length > 0 && (!multiDay || selectedDates.size > 0);
+    const toggleGridDate = (key) => {
+        setSelectedDates((prev) => {
+            const next = new Set(prev);
+            if (next.has(key))
+                next.delete(key);
+            else
+                next.add(key);
+            return next;
+        });
+    };
+    const fillRange = () => {
+        const arr = Array.from(selectedDates).sort();
+        if (arr.length < 2)
+            return;
+        const start = fromKey(arr[0]);
+        const end = fromKey(arr[arr.length - 1]);
+        const next = new Set(selectedDates);
+        let cur = start;
+        while (cur <= end) {
+            next.add(toKey(cur));
+            cur = addDays(cur, 1);
+        }
+        setSelectedDates(next);
+    };
     const handleSave = () => {
         if (!canSave)
             return;
+        const base = editingTask || {};
+        const sortedSelected = Array.from(selectedDates).sort();
+        const finalDate = multiDay ? sortedSelected[0] : date;
+        const finalExtraDates = multiDay ? sortedSelected.slice(1) : [];
         onSave({
-            id: uid(),
+            ...base,
+            id: base.id || uid(),
             type,
             title: title.trim(),
-            date: effectiveHasDate ? date : null,
+            date: effectiveHasDate ? finalDate : null,
+            extraDates: effectiveHasDate ? finalExtraDates : [],
             time: !isBirthday && effectiveHasDate && hasTime ? time : null,
-            repeat: effectiveHasDate ? effectiveRepeat : "none",
-            completed: false,
-            completedAt: null,
-            completions: [],
+            repeat: effectiveHasDate && !multiDay ? effectiveRepeat : "none",
+            priority: !isBirthday && priority,
+            completed: base.completed || false,
+            completedAt: base.completedAt || null,
+            completions: base.completions || [],
+            notes: base.notes || "",
+            subtasks: base.subtasks || [],
+            order: base.order || 0,
         });
         onClose();
     };
-    return (React.createElement(ModalShell, { title: isBirthday ? "Add a birthday" : "Add a task", onClose: onClose },
+    return (React.createElement(ModalShell, { title: editingTask ? "Edit task" : isBirthday ? "Add a birthday" : "Add a task", onClose: onClose },
         React.createElement(FieldLabel, null, "Type"),
         React.createElement("div", { style: { marginBottom: 16 } },
             React.createElement(Segmented, { value: type, onChange: setType, options: [{ label: "Task", value: "task" }, { label: "Birthday", value: "birthday" }] })),
         React.createElement(FieldLabel, null, isBirthday ? "Whose birthday?" : "Title"),
         React.createElement("input", { style: { ...inputStyle, marginBottom: 16, fontFamily: FONT_BODY }, placeholder: isBirthday ? "e.g. Hannah" : "e.g. Check in with Hannah", value: title, onChange: (e) => setTitle(e.target.value), autoFocus: true }),
+        !isBirthday && (React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 16 } },
+            React.createElement("button", { onClick: () => setPriority((v) => !v), style: {
+                    width: 40, height: 23, borderRadius: 12, border: "none", padding: 2,
+                    background: priority ? COLORS.priority : COLORS.border, position: "relative", transition: "background 0.2s",
+                } },
+                React.createElement("div", { style: {
+                        width: 19, height: 19, borderRadius: "50%", background: "#fff",
+                        transform: priority ? "translateX(17px)" : "translateX(0)", transition: "transform 0.2s",
+                    } })),
+            React.createElement("span", { style: { fontSize: 13.5, color: COLORS.text } }, "Mark as priority"))),
         !isBirthday && (React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 16 } },
             React.createElement("button", { onClick: () => setHasDate((v) => !v), style: {
                     width: 40, height: 23, borderRadius: 12, border: "none", padding: 2,
@@ -1508,8 +1627,12 @@ function AddTaskModal({ onClose, onSave, defaultDate }) {
                     } })),
             React.createElement("span", { style: { fontSize: 13.5, color: COLORS.text } }, "Add a date"))),
         effectiveHasDate && (React.createElement(React.Fragment, null,
-            React.createElement(FieldLabel, null, "Date"),
-            React.createElement("input", { type: "date", style: { ...inputStyle, marginBottom: 16 }, value: date, onChange: (e) => setDate(e.target.value) }),
+            !isBirthday && !multiDay && (React.createElement(React.Fragment, null,
+                React.createElement(FieldLabel, null, "Date"),
+                React.createElement("input", { type: "date", style: { ...inputStyle, marginBottom: 16 }, value: date, onChange: (e) => setDate(e.target.value) }))),
+            isBirthday && (React.createElement(React.Fragment, null,
+                React.createElement(FieldLabel, null, "Date"),
+                React.createElement("input", { type: "date", style: { ...inputStyle, marginBottom: 16 }, value: date, onChange: (e) => setDate(e.target.value) }))),
             !isBirthday && (React.createElement(React.Fragment, null,
                 React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 16 } },
                     React.createElement("button", { onClick: () => setHasTime((v) => !v), style: {
@@ -1524,18 +1647,73 @@ function AddTaskModal({ onClose, onSave, defaultDate }) {
                 hasTime && (React.createElement(React.Fragment, null,
                     React.createElement(FieldLabel, null, "Time"),
                     React.createElement("input", { type: "time", style: { ...inputStyle, marginBottom: 16 }, value: time, onChange: (e) => setTime(e.target.value) }))),
-                React.createElement(FieldLabel, null, "Repeat"),
-                React.createElement("select", { style: { ...inputStyle, marginBottom: 16 }, value: repeat, onChange: (e) => setRepeat(e.target.value) },
-                    React.createElement("option", { value: "none" }, "Doesn't repeat"),
-                    React.createElement("option", { value: "daily" }, "Daily"),
-                    React.createElement("option", { value: "weekly" }, "Weekly"),
-                    React.createElement("option", { value: "monthly" }, "Monthly"),
-                    React.createElement("option", { value: "yearly" }, "Yearly")))))),
+                repeat === "none" && (React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 16 } },
+                    React.createElement("button", { onClick: () => { setMultiDay((v) => !v); if (!multiDay)
+                            setSelectedDates(new Set([date])); }, style: {
+                            width: 40, height: 23, borderRadius: 12, border: "none", padding: 2,
+                            background: multiDay ? COLORS.sage : COLORS.border, position: "relative", transition: "background 0.2s",
+                        } },
+                        React.createElement("div", { style: {
+                                width: 19, height: 19, borderRadius: "50%", background: "#fff",
+                                transform: multiDay ? "translateX(17px)" : "translateX(0)", transition: "transform 0.2s",
+                            } })),
+                    React.createElement("span", { style: { fontSize: 13.5, color: COLORS.text } }, "Spans multiple days"))),
+                multiDay && (React.createElement("div", { style: { marginBottom: 16 } },
+                    React.createElement(FieldLabel, null, "Select days"),
+                    React.createElement("div", { style: { background: COLORS.surfaceSoft, borderRadius: 14, padding: "12px 12px" } },
+                        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
+                            React.createElement("button", { className: "clean-btn", onClick: () => setGridMonth(addMonths(gridMonth, -1)), style: { border: "none", background: COLORS.surfaceSoft2, borderRadius: 8, padding: 5 } },
+                                React.createElement(ChevronLeft, { size: 14, color: COLORS.sageDeep })),
+                            React.createElement("span", { style: { fontSize: 12.5, fontWeight: 600, color: COLORS.text } }, monthLabel(gridMonth)),
+                            React.createElement("button", { className: "clean-btn", onClick: () => setGridMonth(addMonths(gridMonth, 1)), style: { border: "none", background: COLORS.surfaceSoft2, borderRadius: 8, padding: 5 } },
+                                React.createElement(ChevronRight, { size: 14, color: COLORS.sageDeep }))),
+                        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 } }, WEEKDAYS.map((w) => (React.createElement("div", { key: w, style: { textAlign: "center", fontSize: 9, color: COLORS.textFaint, fontWeight: 600 } }, w[0])))),
+                        React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 } }, monthDayCells(gridMonth).map((c, i) => (React.createElement("div", { key: i, style: { aspectRatio: "1 / 1", display: "flex", alignItems: "center", justifyContent: "center" } }, c && (React.createElement("button", { onClick: () => toggleGridDate(c.key), style: {
+                                width: "82%", height: "82%", borderRadius: "50%", border: "none",
+                                background: selectedDates.has(c.key) ? COLORS.sage : "transparent",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                            } },
+                            React.createElement("span", { style: { fontSize: 11, color: selectedDates.has(c.key) ? "#fff" : COLORS.text } }, c.day))))))),
+                        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 } },
+                            React.createElement("span", { style: { fontSize: 11, color: COLORS.textMuted } },
+                                selectedDates.size,
+                                " day",
+                                selectedDates.size === 1 ? "" : "s",
+                                " selected"),
+                            selectedDates.size >= 2 && (React.createElement("button", { className: "clean-btn", onClick: fillRange, style: { border: "none", background: "none", fontSize: 11, fontWeight: 700, color: COLORS.sageDeep } }, "Fill range")))))),
+                !multiDay && (React.createElement(React.Fragment, null,
+                    React.createElement(FieldLabel, null, "Repeat"),
+                    React.createElement("select", { style: { ...inputStyle, marginBottom: 16 }, value: repeat, onChange: (e) => setRepeat(e.target.value) },
+                        React.createElement("option", { value: "none" }, "Doesn't repeat"),
+                        React.createElement("option", { value: "daily" }, "Daily"),
+                        React.createElement("option", { value: "weekly" }, "Weekly"),
+                        React.createElement("option", { value: "monthly" }, "Monthly"),
+                        React.createElement("option", { value: "yearly" }, "Yearly")))))))),
         React.createElement("button", { className: "clean-btn", onClick: handleSave, disabled: !canSave, style: {
                 width: "100%", padding: "13px", borderRadius: 14, border: "none", marginTop: 6,
                 background: canSave ? COLORS.sageDeep : COLORS.border,
                 color: "#fff", fontSize: 14.5, fontWeight: 700,
             } }, "Save")));
+}
+function TaskDetailModal({ task, onClose, onUpdateNotes, onAddSubtask, onToggleSubtask, onDeleteSubtask }) {
+    const [notes, setNotes] = useState(task.notes || "");
+    const subtasks = task.subtasks || [];
+    const doneCount = subtasks.filter((s) => s.completed).length;
+    return (React.createElement(ModalShell, { title: task.title, onClose: onClose },
+        React.createElement(FieldLabel, null, "Details"),
+        React.createElement("textarea", { style: { ...inputStyle, minHeight: 84, marginBottom: 18, resize: "vertical", fontFamily: FONT_BODY, lineHeight: 1.5 }, placeholder: "Add any notes or details\u2026", value: notes, onChange: (e) => { setNotes(e.target.value); onUpdateNotes(task.id, e.target.value); } }),
+        React.createElement(FieldLabel, null,
+            "Sub-tasks",
+            subtasks.length > 0 ? ` (${doneCount}/${subtasks.length})` : ""),
+        subtasks.length === 0 ? (React.createElement("div", { style: { fontSize: 12.5, color: COLORS.textFaint, fontStyle: "italic", fontFamily: FONT_DISPLAY, padding: "6px 0 12px" } }, "No sub-tasks yet.")) : (React.createElement("div", { style: { marginBottom: 6 } }, subtasks.map((st) => (React.createElement("div", { key: st.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0" } },
+            React.createElement(Bloom, { checked: st.completed, onClick: () => onToggleSubtask(task.id, st.id), size: 19 }),
+            React.createElement("span", { style: {
+                    flex: 1, fontSize: 13.5, color: st.completed ? COLORS.textFaint : COLORS.text,
+                    textDecoration: st.completed ? "line-through" : "none",
+                } }, st.title),
+            React.createElement("button", { onClick: () => onDeleteSubtask(task.id, st.id), style: { border: "none", background: "none", padding: 4, color: COLORS.textFaint } },
+                React.createElement(Trash2, { size: 13 }))))))),
+        React.createElement(QuickAddRow, { placeholder: "Add a sub-task\u2026", onAdd: (title) => onAddSubtask(task.id, title) })));
 }
 function AddHabitModal({ onClose, onSave }) {
     const [name, setName] = useState("");
@@ -1566,7 +1744,7 @@ function AddExpenseModal({ onClose, onSaveExpense, onSaveSavings }) {
     const [title, setTitle] = useState("");
     const [amount, setAmount] = useState("");
     const [category, setCategory] = useState("Groceries");
-    const [account, setAccount] = useState("TFSA");
+    const [account, setAccount] = useState("Savings");
     const [repeat, setRepeat] = useState("none");
     const [date, setDate] = useState(toKey(new Date()));
     const [scanning, setScanning] = useState(false);
@@ -1606,7 +1784,7 @@ function AddExpenseModal({ onClose, onSaveExpense, onSaveSavings }) {
         else {
             onSaveExpense({
                 id: uid(), type: mode, title: title.trim(), amount: parseFloat(amount),
-                category: mode === "expense" ? category : null, date, note: "",
+                category: mode === "expense" ? category : null, date, note: "", repeat,
             });
         }
         onClose();
@@ -1626,9 +1804,7 @@ function AddExpenseModal({ onClose, onSaveExpense, onSaveSavings }) {
             React.createElement("span", null, scanning ? "Reading receipt…" : "Scan a receipt"),
             React.createElement("input", { type: "file", accept: "image/*", capture: "environment", onChange: handleScan, style: { display: "none" }, disabled: scanning }))),
         scanError && (React.createElement("div", { style: { fontSize: 12, color: COLORS.danger, marginTop: -10, marginBottom: 14 } }, scanError)),
-        mode === "savings" ? (React.createElement(React.Fragment, null,
-            React.createElement(FieldLabel, null, "Account"),
-            React.createElement("select", { style: { ...inputStyle, marginBottom: 16 }, value: account, onChange: (e) => setAccount(e.target.value) }, SAVINGS_ACCOUNTS.map((a) => React.createElement("option", { key: a, value: a }, a))))) : (React.createElement(React.Fragment, null,
+        mode !== "savings" && (React.createElement(React.Fragment, null,
             React.createElement(FieldLabel, null, mode === "expense" ? "Merchant" : "Source"),
             React.createElement("input", { style: { ...inputStyle, marginBottom: 16 }, placeholder: mode === "expense" ? "e.g. Trader Joe's" : "e.g. Paycheck", value: title, onChange: (e) => setTitle(e.target.value) }))),
         React.createElement(FieldLabel, null, "Amount"),
@@ -1636,12 +1812,11 @@ function AddExpenseModal({ onClose, onSaveExpense, onSaveSavings }) {
         mode === "expense" && (React.createElement(React.Fragment, null,
             React.createElement(FieldLabel, null, "Category"),
             React.createElement("select", { style: { ...inputStyle, marginBottom: 16 }, value: category, onChange: (e) => setCategory(e.target.value) }, CATEGORIES.map((c) => React.createElement("option", { key: c.key, value: c.key }, c.key))))),
-        mode === "savings" && (React.createElement(React.Fragment, null,
-            React.createElement(FieldLabel, null, "Repeats"),
-            React.createElement("select", { style: { ...inputStyle, marginBottom: 16 }, value: repeat, onChange: (e) => setRepeat(e.target.value) },
-                React.createElement("option", { value: "none" }, "Just once"),
-                React.createElement("option", { value: "weekly" }, "Weekly"),
-                React.createElement("option", { value: "monthly" }, "Monthly")))),
+        React.createElement(FieldLabel, null, "Repeats"),
+        React.createElement("select", { style: { ...inputStyle, marginBottom: 16 }, value: repeat, onChange: (e) => setRepeat(e.target.value) },
+            React.createElement("option", { value: "none" }, "Just once"),
+            React.createElement("option", { value: "weekly" }, "Weekly"),
+            React.createElement("option", { value: "monthly" }, "Monthly")),
         React.createElement(FieldLabel, null, "Date"),
         React.createElement("input", { type: "date", style: { ...inputStyle, marginBottom: 16 }, value: date, onChange: (e) => setDate(e.target.value) }),
         React.createElement("button", { className: "clean-btn", onClick: handleSave, disabled: !canSave, style: {
@@ -1675,16 +1850,22 @@ function App() {
     const [loaded, setLoaded] = useState(false);
     const [tab, setTab] = useState("today");
     const [modalOpen, setModalOpen] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
+    const [subtaskTask, setSubtaskTask] = useState(null);
     const [budgetModalOpen, setBudgetModalOpen] = useState(false);
     const [calRefDate, setCalRefDate] = useState(new Date());
     const [calZoom, setCalZoom] = useState("week");
+    const [todayWhich, setTodayWhich] = useState("today");
     const [expenseMonthRef, setExpenseMonthRef] = useState(new Date());
     const [introPhase, setIntroPhase] = useState("in");
     const [introChecked, setIntroChecked] = useState(false);
     useEffect(() => {
-        const t1 = setTimeout(() => setIntroPhase("out"), 2200);
-        const t2 = setTimeout(() => setIntroPhase(null), 3300);
-        const t3 = setTimeout(() => { setIntroChecked(true); playDing(); }, 1300);
+        window.scrollTo(0, 0);
+    }, [tab]);
+    useEffect(() => {
+        const t1 = setTimeout(() => setIntroPhase("out"), 2700);
+        const t2 = setTimeout(() => setIntroPhase(null), 3800);
+        const t3 = setTimeout(() => { setIntroChecked(true); playDing(); }, 1800);
         return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
     }, []);
     useEffect(() => {
@@ -1725,6 +1906,24 @@ function App() {
     useEffect(() => {
         if (!loaded)
             return;
+        const todayKey = toKey(new Date());
+        setTasks((prev) => {
+            let changed = false;
+            const next = prev.map((t) => {
+                const isMulti = hasMultipleOccurrences(t);
+                if (t.type === "task" && t.date && !isMulti && !t.completed && t.date < todayKey) {
+                    changed = true;
+                    return { ...t, date: todayKey };
+                }
+                return t;
+            });
+            return changed ? next : prev;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loaded]);
+    useEffect(() => {
+        if (!loaded)
+            return;
         (async () => {
             try {
                 await window.storage.set("planner-data", JSON.stringify({
@@ -1740,8 +1939,8 @@ function App() {
         setTasks((prev) => prev.map((t) => {
             if (t.id !== taskId)
                 return t;
-            const isRepeating = t.repeat && t.repeat !== "none";
-            if (isRepeating) {
+            const isMulti = hasMultipleOccurrences(t);
+            if (isMulti) {
                 const completions = t.completions || [];
                 const has = completions.includes(dateKey);
                 return { ...t, completions: has ? completions.filter((d) => d !== dateKey) : [...completions, dateKey] };
@@ -1751,7 +1950,23 @@ function App() {
         }));
     };
     const deleteTask = (taskId) => setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    const addTask = (task) => setTasks((prev) => [...prev, task]);
+    const upsertTask = (task) => setTasks((prev) => {
+        const exists = prev.some((t) => t.id === task.id);
+        return exists ? prev.map((t) => (t.id === task.id ? task : t)) : [...prev, task];
+    });
+    const togglePriority = (taskId) => setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, priority: !t.priority } : t));
+    const updateTaskNotes = (taskId, notes) => setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, notes } : t));
+    const addSubtaskToTask = (taskId, title) => setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, subtasks: [...(t.subtasks || []), { id: uid(), title, completed: false }] } : t));
+    const toggleSubtaskDone = (taskId, subtaskId) => setTasks((prev) => prev.map((t) => {
+        if (t.id !== taskId)
+            return t;
+        return { ...t, subtasks: (t.subtasks || []).map((s) => s.id === subtaskId ? { ...s, completed: !s.completed } : s) };
+    }));
+    const deleteSubtaskFromTask = (taskId, subtaskId) => setTasks((prev) => prev.map((t) => {
+        if (t.id !== taskId)
+            return t;
+        return { ...t, subtasks: (t.subtasks || []).filter((s) => s.id !== subtaskId) };
+    }));
     const reorderTasks = (newOrderIds, draggedId) => {
         setTasks((prev) => {
             const orderMap = {};
@@ -1792,7 +2007,9 @@ function App() {
     const togglePeriodDay = (key) => setPeriodDays((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
     const today = new Date();
     const dateStr = `${WEEKDAYS[today.getDay()]}, ${MONTHS[today.getMonth()]} ${today.getDate()}`;
-    const defaultTaskDate = tab === "today" ? toKey(today) : tab === "calendar" ? toKey(calRefDate) : null;
+    const defaultTaskDate = tab === "today"
+        ? (todayWhich === "tomorrow" ? toKey(addDays(today, 1)) : toKey(today))
+        : tab === "calendar" ? toKey(calRefDate) : null;
     const TABS = [
         { key: "today", label: "Today", icon: Sun },
         { key: "tasks", label: "Tasks", icon: ListChecks },
@@ -1848,9 +2065,9 @@ function App() {
                 React.createElement("div", { style: { fontSize: 12.5, color: COLORS.creamMuted, marginTop: 6 } }, dateStr)),
             React.createElement("div", { style: { flex: 1, padding: "16px 20px 110px", overflowY: "auto", position: "relative" } },
                 React.createElement("div", { key: tab, className: "tab-panel" },
-                    tab === "today" && React.createElement(TodayView, { tasks: tasks, onToggle: toggleTask, onDelete: deleteTask, onReorder: reorderTasks }),
-                    tab === "tasks" && React.createElement(TasksView, { tasks: tasks, onToggle: toggleTask, onDelete: deleteTask, onReorder: reorderTasks }),
-                    tab === "calendar" && (React.createElement(CalendarView, { tasks: tasks, onToggle: toggleTask, onDelete: deleteTask, onReorder: reorderTasks, refDate: calRefDate, setRefDate: setCalRefDate, zoom: calZoom, setZoom: setCalZoom })),
+                    tab === "today" && (React.createElement(TodayView, { tasks: tasks, onToggle: toggleTask, onDelete: deleteTask, onReorder: reorderTasks, onTogglePriority: togglePriority, onEdit: setEditingTask, onOpenSubtasks: setSubtaskTask, which: todayWhich, setWhich: setTodayWhich })),
+                    tab === "tasks" && (React.createElement(TasksView, { tasks: tasks, onToggle: toggleTask, onDelete: deleteTask, onReorder: reorderTasks, onTogglePriority: togglePriority, onEdit: setEditingTask, onOpenSubtasks: setSubtaskTask })),
+                    tab === "calendar" && (React.createElement(CalendarView, { tasks: tasks, onToggle: toggleTask, onDelete: deleteTask, onReorder: reorderTasks, onTogglePriority: togglePriority, onEdit: setEditingTask, onOpenSubtasks: setSubtaskTask, refDate: calRefDate, setRefDate: setCalRefDate, zoom: calZoom, setZoom: setCalZoom })),
                     tab === "habits" && React.createElement(HabitsView, { habits: habits, onToggle: toggleHabit, onDelete: deleteHabit }),
                     tab === "expenses" && (React.createElement(ExpensesView, { expenses: expenses, budgets: budgets, savings: savings, monthRef: expenseMonthRef, setMonthRef: setExpenseMonthRef, onDeleteExpense: deleteExpense, onOpenBudgets: () => setBudgetModalOpen(true) })),
                     tab === "grocery" && (React.createElement(GroceryView, { meals: meals, setMeals: setMeals, ingredients: ingredients, pantry: pantry, onAddIngredient: addIngredient, onRemoveIngredient: removeIngredient, onAddPantry: addPantryItem, onRemovePantry: removePantryItem, onBuyItem: buyIngredient })),
@@ -1883,7 +2100,9 @@ function App() {
             }))),
         modalOpen && tab === "habits" && (React.createElement(AddHabitModal, { onClose: () => setModalOpen(false), onSave: addHabit })),
         modalOpen && tab === "expenses" && (React.createElement(AddExpenseModal, { onClose: () => setModalOpen(false), onSaveExpense: addExpense, onSaveSavings: addSavings })),
-        modalOpen && tab !== "habits" && tab !== "expenses" && tab !== "grocery" && tab !== "quote" && tab !== "period" && (React.createElement(AddTaskModal, { onClose: () => setModalOpen(false), onSave: addTask, defaultDate: defaultTaskDate })),
+        modalOpen && tab !== "habits" && tab !== "expenses" && tab !== "grocery" && tab !== "quote" && tab !== "period" && (React.createElement(AddTaskModal, { onClose: () => setModalOpen(false), onSave: upsertTask, defaultDate: defaultTaskDate })),
+        editingTask && (React.createElement(AddTaskModal, { onClose: () => setEditingTask(null), onSave: upsertTask, editingTask: editingTask })),
+        subtaskTask && (React.createElement(TaskDetailModal, { task: tasks.find((t) => t.id === subtaskTask.id) || subtaskTask, onClose: () => setSubtaskTask(null), onUpdateNotes: updateTaskNotes, onAddSubtask: addSubtaskToTask, onToggleSubtask: toggleSubtaskDone, onDeleteSubtask: deleteSubtaskFromTask })),
         budgetModalOpen && (React.createElement(BudgetModal, { budgets: budgets, onClose: () => setBudgetModalOpen(false), onSave: saveBudgets }))));
 }
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App, null));
