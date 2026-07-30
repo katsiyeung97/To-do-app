@@ -537,7 +537,7 @@ function dailyMoodTiles() {
 }
 /* ------------------------------ SMALL UI PIECES ------------------------------ */
 function Bloom({ checked, onClick, size = 22 }) {
-    return (React.createElement("button", { onClick: onClick, onPointerDown: (e) => e.stopPropagation(), "aria-label": checked ? "Mark as not done" : "Mark as done", style: {
+    return (React.createElement("button", { onClick: onClick, onPointerDown: (e) => e.stopPropagation(), onPointerUp: (e) => e.stopPropagation(), "aria-label": checked ? "Mark as not done" : "Mark as done", style: {
             width: size, height: size, borderRadius: "50%", flexShrink: 0,
             border: `1.6px solid ${checked ? COLORS.sage : COLORS.creamMuted}`,
             background: checked ? `linear-gradient(135deg, ${COLORS.sage}, ${COLORS.teal})` : "transparent",
