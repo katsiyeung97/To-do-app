@@ -774,7 +774,7 @@ function SwipeRow({ onDelete, onTogglePriority, onTap, children }) {
                 transition: drag.current.active ? "none" : "transform 0.2s ease",
                 touchAction: "pan-y",
             } }, children),
-        confirming && (React.createElement(ConfirmDeleteModal, { onCancel: () => { setConfirming(false); setDx(0); setRevealed(false); }, onConfirm: () => { setConfirming(false); setDx(0); setRevealed(false); onDelete(); } }))));
+        confirming && ReactDOM.createPortal(React.createElement(ConfirmDeleteModal, { onCancel: () => { setConfirming(false); setDx(0); setRevealed(false); }, onConfirm: () => { setConfirming(false); setDx(0); setRevealed(false); onDelete(); } }), document.body)));
 }
 /* -------------------------------- TASK ROW -------------------------------- */
 function TaskRow({ task, dateKey, onToggle, onDelete, showDate, dragHandleProps, onTogglePriority, onEdit, onOpenSubtasks }) {
